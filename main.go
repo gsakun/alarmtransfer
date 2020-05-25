@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "D:/mygo/src/github.com/gsakun/alarmtransfer/cmd"
+import "github.com/gsakun/alarmtransfer/cmd"
 
 func main() {
 	cmd.Execute()
