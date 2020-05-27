@@ -3,13 +3,14 @@ package db
 import (
 	"time"
 
+	"database/sql"
+
 	"github.com/gsakun/alarmtransfer/config"
-	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 )
 
 // DB connection
-var DB *gorm.DB
+var DB *sql.DB
 
 // DataCentermap store datacenter info
 var DataCentermap map[string]int = make(map[string]int)
@@ -20,15 +21,15 @@ var ZoneInfomap map[string]int = make(map[string]int)
 // Init use for init mysql connection
 func Init(conf config.DbConfig) {
 	var err error
-	DB, err = gorm.Open("mysql", conf.Database)
+	DB, err = sql.Open("mysql", conf.Database)
 	if err != nil {
 		log.Fatalln("open db fail:", err)
 	}
 
-	DB.DB().SetMaxIdleConns(conf.Maxidle)
-	DB.DB().SetMaxOpenConns(conf.Maxconn)
+	DB.SetMaxIdleConns(conf.Maxidle)
+	DB.SetMaxOpenConns(conf.Maxconn)
 
-	err = DB.DB().Ping()
+	err = DB.Ping()
 	if err != nil {
 		log.Fatalf("ping db fail:", err)
 	}
@@ -43,7 +44,7 @@ func SyncMap() {
 
 func querydatacenter() {
 	sql := "select id, data_center_name from data_center"
-	rows, err := DB.DB().Query(sql)
+	rows, err := DB.Query(sql)
 	if err != nil {
 		log.Errorf("Query data_center table Failed")
 	} else {
@@ -62,11 +63,12 @@ func querydatacenter() {
 			DataCentermap[dataCenterName] = id
 		}
 	}
+	log.Infof("sync datacenter table success %v", DataCentermap)
 }
 
 func queryzone() {
 	sql := "select id, zone_name from zone"
-	rows, err := DB.DB().Query(sql)
+	rows, err := DB.Query(sql)
 	if err != nil {
 		log.Errorf("Query zone table Failed")
 	} else {
@@ -85,4 +87,5 @@ func queryzone() {
 			ZoneInfomap[zoneName] = id
 		}
 	}
+	log.Infof("sync zone table success %v", ZoneInfomap)
 }

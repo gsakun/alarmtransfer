@@ -7,7 +7,8 @@ import (
 )
 
 func LoadFile(filename string) (*Config, error) {
-	content, err := ioutil.ReadFile(filename)
+	filepath := `D:\mygo\src\github.com\gsakun\alarmtransfer\cmd\logs\config.yml`
+	content, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, err
 	}

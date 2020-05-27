@@ -2,12 +2,13 @@ package db
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
-	"github.com/gsakun/alarmtransfer/types"
+	models "github.com/gsakun/alarmtransfer/model"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,7 +22,7 @@ type Alert struct {
 	AlertState   int    `gorm:"size:4;DEFAULT NULL" json:"alert_state"`
 	DateSubmit   string `gorm:"size:255;not null" json:"date_submit"`
 	DateHandle   string `gorm:"size:255;DEFAULT NULL" json:"date_handle"`
-	Description  string `gorm:"size:255;not null" json:"date_handle"`
+	Description  string `gorm:"size:255;not null" json:"description"`
 	HandleMethod string `gorm:"size:255;DEFAULT NULL" json:"handle_method"`
 	UUID         string `gorm:"size:255;not null" json:"uuid"`
 	AlertCount   int    `gorm:"size:4;DEFAULT NULL" json:"alert_count"`
@@ -38,8 +39,8 @@ func md5V3(str string) string {
 }
 
 //HandleMessage use for handler alertmanager alarm message
-func HandleMessage(messages types.WebhookMessage) error {
-
+func HandleMessage(messages models.WebhookMessage) error {
+	var errinfo map[string]string = make(map[string]string)
 	status := messages.Status
 	if status == "firing" {
 		for _, i := range messages.Alerts {
@@ -47,7 +48,8 @@ func HandleMessage(messages types.WebhookMessage) error {
 			alert.AlertName = i.Labels["alertname"]
 			alarmsourcetype := i.Labels["sourcetype"]
 			if alarmsourcetype == "" {
-				log.Errorf("This alert data can't be analysis")
+				log.Errorf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get sourcetype file in labels", i)
 				continue
 			}
 			if alarmsourcetype == "0" || alarmsourcetype == "1" {
@@ -62,37 +64,128 @@ func HandleMessage(messages types.WebhookMessage) error {
 			if zone == "" {
 				zone = i.Labels["tenant"]
 				if zone == "" {
+					log.Errorf("This alert %v data can't be analysis, can't get zone field in labels", i)
+					errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get zone field in labels", i)
 					continue
 				}
 			}
 			alert.ZoneID = ZoneInfomap[zone]
 			datacenter := i.Labels["datacenter"]
 			if datacenter == "" {
+				log.Errorf("This alert %v data can't be analysis, can't get datacenter field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get datacenter field in labels", i)
 				continue
 			}
 			datacenterid := DataCentermap[datacenter]
 			alert.DataCenterID = datacenterid
 			alarmlevel := i.Labels["severity"]
 			if alarmlevel == "" {
+				log.Errorf("This alert %v data can't be analysis, can't get severity field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get severity field in labels", i)
 				continue
 			}
 			alertlevel, err := strconv.Atoi(alarmlevel)
 			if err != nil {
+				log.Errorf("This alert %v data can't be analysis, can't get correct alertlevel field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get correct alertlevel field in labels", i)
 				continue
 			}
 			alert.AlertLevel = alertlevel
-			alarmtype := i.Labels["alarmtype"]
-			createtime := i.StartsAt
+			alert.AlertType = i.Labels["alarmtype"]
+			alert.DateSubmit = i.StartsAt.Format("2006-01-02 15:04:05")
 			description := fmt.Sprintf("%s-%s", i.Annotations["description"], i.Annotations["summary"])
-
+			alert.Description = description
+			alert.UUID = md5V3(fmt.Sprintf("%s-%s", alert.AlertSrc, alert.AlertName))
+			alert.AlertState = 0
+			log.Infof("Start HandleMessage %s-%s", alert.AlertSrc, alert.AlertName)
+			err = handleralert(alert)
+			if err != nil {
+				log.Errorf("%s-%s commitorupdate err %v", alert.AlertSrc, alert.AlertName, err)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data insert failed errinfo %v", i, err)
+			} else {
+				log.Infof("Insert alert %s-%s success", alert.AlertSrc, alert.AlertName)
+			}
+		}
+	} else {
+		for _, i := range messages.Alerts {
+			alert := new(Alert)
+			alert.AlertName = i.Labels["alertname"]
+			alarmsourcetype := i.Labels["sourcetype"]
+			if alarmsourcetype == "" {
+				log.Errorf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
+				continue
+			}
+			if alarmsourcetype == "0" || alarmsourcetype == "1" {
+				alert.AlertSrc = strings.Split(i.Labels["instance"], ":")[0]
+			} else if alarmsourcetype == "3" {
+				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s", i.Labels["cluster"])
+			} else if alarmsourcetype == "2" {
+				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s-%s-pod-%s", i.Labels["cluster"], i.Labels["namespace"], i.Labels["container_name"])
+			}
+			alert.UUID = md5V3(fmt.Sprintf("%s-%s", alert.AlertSrc, alert.AlertName))
+			alert.AlertState = 1
+			alert.DateHandle = i.EndsAt.Format("2006-01-02 15:04:05")
+			err := handleralert(alert)
+			if err != nil {
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data cancel failed errinfo %v", i, err)
+				log.Errorf("%s-%s cancel err %v", alert.AlertSrc, alert.AlertName, err)
+			}
 		}
 	}
-}
-
-func insert(alert *Alert) error {
+	if len(errinfo) != 0 {
+		return fmt.Errorf("%v", errinfo)
+	}
 	return nil
 }
 
-func update(alert *Alert) error {
+func handleralert(alert *Alert) error {
+	var id int = 0
+	querysql := "select id from alert where uuid=" + "\"" + alert.UUID + "\""
+	err := DB.QueryRow(querysql).Scan(&id)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Errorf("Query DB failed %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+			return err
+		}
+	}
+	if id == 0 {
+		if alert.AlertState == 0 {
+			stmt, err := DB.Prepare(`INSERT alert(alert_src,alert_src_type,alert_type,alert_level,alert_state,date_submit,description,uuid,alert_count,zone_id,data_center_id,alert_name) values(?,?,?,?,?,?,?,?,?,?,?,?)`)
+			if err != nil {
+				log.Errorf("Insert prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+			_, err = stmt.Exec(alert.AlertSrc, alert.AlertSrcType, alert.AlertType, alert.AlertLevel, alert.AlertState, alert.DateSubmit, alert.Description, alert.UUID, 1, alert.ZoneID, alert.DataCenterID, alert.AlertName)
+			if err != nil {
+				log.Errorf("Insert exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+		}
+	} else {
+		if alert.AlertState == 0 {
+			stmt, err := DB.Prepare(`UPDATE alert set alert_state=?,date_submit=?,description=?,alert_count=alert_count+1 where uuid=?`)
+			if err != nil {
+				log.Errorf("Update prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+			_, err = stmt.Exec(alert.AlertState, alert.DateSubmit, alert.Description, alert.UUID)
+			if err != nil {
+				log.Errorf("Update exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+		} else {
+			stmt, err := DB.Prepare(`UPDATE alert set alert_state=?,date_handle=? where uuid=?`)
+			if err != nil {
+				log.Errorf("Update prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+			_, err = stmt.Exec(alert.AlertState, alert.DateHandle, alert.UUID)
+			if err != nil {
+				log.Errorf("Update exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
+				return err
+			}
+		}
+	}
 	return nil
 }
