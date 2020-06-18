@@ -23,16 +23,4 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           VERSION=`date "+%Y%m%d"`
           docker tag alarmtransfer $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION 
-  
-      - name: Log into quay registry
-        run: docker logout && echo "${{ secrets.QUAY_DOCKERHUB_PASSWD }}" | docker login quay.io -u "${{ secrets.QUAY_DOCKERHUB_USER }}" --password-stdin
-  
-      - name: Push image to quay.io
-        run: |
-          IMAGE_ID=quay.io/gsakun/alarmtransfer
-          echo "HELLO"
-          echo IMAGE_ID=$IMAGE_ID
-          VERSION=`date "+%Y%m%d"`
-          docker tag alarmtransfer $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
