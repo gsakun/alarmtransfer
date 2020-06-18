@@ -1,6 +1,6 @@
 FROM golang:1.13-alpine as builder
 
-WORKDIR /go/src/github.com/gsakun/alarmtransfer/cmd
+WORKDIR /go/src/github.com/gsakun/alarmtransfer/
 
 COPY . .
 
@@ -16,6 +16,6 @@ RUN apk add --no-cache tzdata \
 
 ENV TZ Asia/Shanghai
 
-COPY --from=builder /go/src/github.com/gsakun/alarmtransfer/cmd/alarmtransfer /alarmtransfer
+COPY --from=builder /go/src/github.com/gsakun/alarmtransfer/alarmtransfer /alarmtransfer
 
 ENTRYPOINT ["./alarmtransfer"]

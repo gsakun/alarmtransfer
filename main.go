@@ -75,7 +75,7 @@ func main() {
 	kingpin.Version("alarmtransfer v1.0")
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
-	if dbaddress == "" {
+	if *dbaddress == "" {
 		log.Fatalf("dbaddress can't be empty")
 	}
 	db.Init(*dbaddress, *maxconn, *maxidle)
