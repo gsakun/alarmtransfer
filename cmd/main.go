@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gsakun/alarmtransfer/config"
 	"github.com/gsakun/alarmtransfer/db"
 	models "github.com/gsakun/alarmtransfer/model"
 	colorable "github.com/mattn/go-colorable"
@@ -31,7 +30,7 @@ func init() {
 		log.Infoln("log level is normal")
 	}
 	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
-		Filename:   "logs/alarmtransfer.log",
+		Filename:   "../logs/alarmtransfer.log",
 		MaxSize:    50, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28, //days
@@ -49,6 +48,7 @@ func init() {
 		TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:     true,
 	})
+	log.SetReportCaller(true)
 	log.AddHook(rotateFileHook)
 }
 
@@ -58,21 +58,27 @@ func main() {
 			"web.listen-address",
 			"The address to listen on for web interface.",
 		).Default(":8080").String()
-		configFile = kingpin.Flag(
-			"config.file",
-			"Path to the configuration file.",
-		).Default("config.yml").String()
+		dbaddress = kingpin.Flag(
+			"database",
+			"The database address for get machine info.",
+		).Default("").String()
+		maxconn = kingpin.Flag(
+			"maxconn",
+			"Database maxconn.",
+		).Default("100").Int()
+		maxidle = kingpin.Flag(
+			"maxidle",
+			"Database maxidle.",
+		).Default(string(*maxconn)).Int()
 	)
 
 	kingpin.Version("alarmtransfer v1.0")
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
-	log.Infof("Config name %s", *configFile)
-	conf, err := config.LoadFile(*configFile)
-	if err != nil {
-		log.Fatalf("Parse Config Failed, Please Check Config %v", err)
+	if dbaddress == "" {
+		log.Fatalf("dbaddress can't be empty")
 	}
-	db.Init(*conf.DbConfig)
+	db.Init(*dbaddress, *maxconn, *maxidle)
 
 	go db.SyncMap()
 

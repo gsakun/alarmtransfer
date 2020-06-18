@@ -5,7 +5,6 @@ import (
 
 	"database/sql"
 
-	"github.com/gsakun/alarmtransfer/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,16 +17,25 @@ var DataCentermap map[string]int = make(map[string]int)
 // ZoneInfomap store zone info
 var ZoneInfomap map[string]int = make(map[string]int)
 
+// AlertLevelmap store alertlevel info
+var AlertLevelmap map[string]int = make(map[string]int)
+
+// AlertTypemap store alerttype info
+var AlertTypemap map[string]int = make(map[string]int)
+
+// AlertSourceTypemap store alertsourcetype info
+var AlertSourceTypemap map[string]int = make(map[string]int)
+
 // Init use for init mysql connection
-func Init(conf config.DbConfig) {
+func Init(dbaddress string, maxconn, maxidle int) {
 	var err error
-	DB, err = sql.Open("mysql", conf.Database)
+	DB, err = sql.Open("mysql", dbaddress)
 	if err != nil {
 		log.Fatalln("open db fail:", err)
 	}
 
-	DB.SetMaxIdleConns(conf.Maxidle)
-	DB.SetMaxOpenConns(conf.Maxconn)
+	DB.SetMaxIdleConns(maxidle)
+	DB.SetMaxOpenConns(maxconn)
 
 	err = DB.Ping()
 	if err != nil {
@@ -39,7 +47,82 @@ func Init(conf config.DbConfig) {
 func SyncMap() {
 	go querydatacenter()
 	go queryzone()
-	time.Sleep(3600 * time.Second)
+	go queryalertlevel()
+	go queryalerttype()
+	go queryalertsrctype()
+	time.Sleep(600 * time.Second)
+}
+
+func queryalertlevel() {
+	sql := "select id, alert_level from alert_level"
+	rows, err := DB.Query(sql)
+	if err != nil {
+		log.Errorf("Query alert_level table Failed")
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id          int
+				alert_level string
+			)
+
+			err = rows.Scan(&id, &alert_level)
+			if err != nil {
+				log.Errorf("ERROR: %v", err)
+				continue
+			}
+			AlertLevelmap[alert_level] = id
+		}
+	}
+	log.Infof("sync alert_level table success %v", AlertLevelmap)
+}
+
+func queryalerttype() {
+	sql := "select id, alert_type from alert_level"
+	rows, err := DB.Query(sql)
+	if err != nil {
+		log.Errorf("Query alert_type table Failed")
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id         int
+				alert_type string
+			)
+
+			err = rows.Scan(&id, &alert_type)
+			if err != nil {
+				log.Errorf("ERROR: %v", err)
+				continue
+			}
+			AlertTypemap[alert_type] = id
+		}
+	}
+	log.Infof("sync alert_type table success %v", AlertTypemap)
+}
+
+func queryalertsrctype() {
+	sql := "select id, alert_src_type from alert_level"
+	rows, err := DB.Query(sql)
+	if err != nil {
+		log.Errorf("Query alert_src_type table Failed")
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id             int
+				alert_src_type string
+			)
+
+			err = rows.Scan(&id, &alert_src_type)
+			if err != nil {
+				log.Errorf("ERROR: %v", err)
+				continue
+			}
+			AlertSourceTypemap[alert_src_type] = id
+		}
+	}
+	log.Infof("sync alert_src_type table success %v", AlertSourceTypemap)
 }
 
 func querydatacenter() {

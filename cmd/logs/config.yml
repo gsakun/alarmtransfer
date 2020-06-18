@@ -1,4 +1,0 @@
-dbconfig:
-    database: root:123456@tcp(10.10.110.44:3306)/monitoring_platform?loc=Local&parseTime=true
-    maxconn: 100
-    maxidle: 100
