@@ -78,7 +78,7 @@ func queryalertlevel() {
 }
 
 func queryalerttype() {
-	sql := "select id, alert_type from alert_level"
+	sql := "select id, alert_type from alert_type"
 	rows, err := DB.Query(sql)
 	if err != nil {
 		log.Errorf("Query alert_type table Failed")
@@ -102,7 +102,7 @@ func queryalerttype() {
 }
 
 func queryalertsrctype() {
-	sql := "select id, alert_src_type from alert_level"
+	sql := "select id, alert_src_type from alert_src_type"
 	rows, err := DB.Query(sql)
 	if err != nil {
 		log.Errorf("Query alert_src_type table Failed")
