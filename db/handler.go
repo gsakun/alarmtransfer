@@ -40,6 +40,7 @@ func md5V3(str string) string {
 
 //HandleMessage use for handler alertmanager alarm message
 func HandleMessage(messages models.WebhookMessage) error {
+	log.Infof("Message: %v", messages)
 	var errinfo map[string]string = make(map[string]string)
 	status := messages.Status
 	if status == "firing" {
@@ -122,19 +123,23 @@ func HandleMessage(messages models.WebhookMessage) error {
 		for _, i := range messages.Alerts {
 			alert := new(Alert)
 			alert.AlertName = i.Labels["alertname"]
-			alarmsourcetype := i.Labels["sourcetype"]
-			if alarmsourcetype == "" {
+			alarmsourcetypename := i.Labels["alert_source_type"]
+			if alarmsourcetypename == "" {
 				log.Errorf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
-				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
+				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get sourcetype file in labels", i)
 				continue
 			}
-			if alarmsourcetype == "0" || alarmsourcetype == "1" {
+			alarmsourcetype := AlertSourceTypemap[alarmsourcetypename]
+			if alarmsourcetype == 1 || alarmsourcetype == 2 {
 				alert.AlertSrc = strings.Split(i.Labels["instance"], ":")[0]
-			} else if alarmsourcetype == "3" {
+			} else if alarmsourcetype == 3 {
 				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s", i.Labels["cluster"])
-			} else if alarmsourcetype == "2" {
-				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s-%s-pod-%s", i.Labels["cluster"], i.Labels["namespace"], i.Labels["container_name"])
+			} else if alarmsourcetype == 4 {
+				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s-%s-pod-%s", i.Labels["cluster"], i.Labels["namespace"], i.Labels["pod_name"])
+			} else {
+				alert.AlertSrc = i.Labels["instance"]
 			}
+			alert.AlertSrcType = alarmsourcetype
 			alert.UUID = md5V3(fmt.Sprintf("%s-%s", alert.AlertSrc, alert.AlertName))
 			alert.AlertState = 1
 			l, _ := time.LoadLocation("Asia/Shanghai")
@@ -144,6 +149,7 @@ func HandleMessage(messages models.WebhookMessage) error {
 				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data cancel failed errinfo %v", i, err)
 				log.Errorf("%s-%s cancel err %v", alert.AlertSrc, alert.AlertName, err)
 			}
+			log.Infoln("Cancel Alert success for %s-%s", alert.AlertSrc, alert.AlertName)
 		}
 	}
 	if len(errinfo) != 0 {
