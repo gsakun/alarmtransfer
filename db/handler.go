@@ -62,12 +62,10 @@ func HandleMessage(messages models.WebhookMessage) error {
 				alert.AlertSrc = i.Labels["instance"]
 			}
 			alert.AlertSrcType = alarmsourcetype
-			system := i.Labels["cluster"]
+			system := i.Labels["user"]
 			if system == "" {
 				system = i.Labels["tenant"]
 				if system == "" {
-					log.Warningf("This alert %v data can't be analysis, can't get system field in labels", i)
-					errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get system field in labels", i)
 					continue
 				}
 			}
