@@ -45,7 +45,7 @@ func HandleMessage(messages models.WebhookMessage) error {
 		for _, i := range messages.Alerts {
 			alert := new(Alert)
 			alert.AlertName = i.Labels["alertname"]
-			alarmsourcetypename := i.Labels["alert_src_type"]
+			alarmsourcetypename := i.Labels["alert_source_type"]
 			if alarmsourcetypename == "" {
 				log.Errorf("This alert %v data can't be analysis, can't get sourcetype field in labels", i)
 				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data can't be analysis, can't get sourcetype file in labels", i)
@@ -62,13 +62,13 @@ func HandleMessage(messages models.WebhookMessage) error {
 				alert.AlertSrc = i.Labels["instance"]
 			}
 			alert.AlertSrcType = alarmsourcetype
-			if i.Labels["alert_src_type"] == "k8s" || i.Labels["alert_src_type"] == "pod" {
+			if i.Labels["alert_source_type"] == "k8s" || i.Labels["alert_source_type"] == "pod" {
 				if i.Labels["user"] != "" {
 					alert.System = i.Labels["user"]
 				}
 				alert.System = i.Labels["cluster"]
 			}
-			if i.Labels["alert_src_type"] == "kvm" {
+			if i.Labels["alert_source_type"] == "kvm" {
 				if i.Labels["tenant"] != "" {
 					alert.System = i.Labels["tenant"]
 				}
