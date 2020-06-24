@@ -62,14 +62,17 @@ func HandleMessage(messages models.WebhookMessage) error {
 				alert.AlertSrc = i.Labels["instance"]
 			}
 			alert.AlertSrcType = alarmsourcetype
-			system := i.Labels["user"]
-			if system == "" {
-				system = i.Labels["tenant"]
-				if system == "" {
-					continue
+			if i.Labels["alert_src_type"] == "k8s" || i.Labels["alert_src_type"] == "pod" {
+				if i.Labels["user"] != "" {
+					alert.System = i.Labels["user"]
+				}
+				alert.System = i.Labels["cluster"]
+			}
+			if i.Labels["alert_src_type"] == "kvm" {
+				if i.Labels["tenant"] != "" {
+					alert.System = i.Labels["tenant"]
 				}
 			}
-			alert.System = system
 			zone := i.Labels["region"]
 			if zone == "" {
 				log.Errorf("This alert %v data can't be analysis, can't get region field in labels", i)
