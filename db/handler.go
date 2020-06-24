@@ -42,9 +42,8 @@ func md5V3(str string) string {
 func HandleMessage(messages models.WebhookMessage) error {
 	log.Infof("Message: %v", messages)
 	var errinfo map[string]string = make(map[string]string)
-	status := messages.Status
-	if status == "firing" {
-		for _, i := range messages.Alerts {
+	for _, i := range messages.Alerts {
+		if i.Status == "firing" {
 			alert := new(Alert)
 			alert.AlertName = i.Labels["alertname"]
 			alarmsourcetypename := i.Labels["alert_source_type"]
@@ -119,8 +118,7 @@ func HandleMessage(messages models.WebhookMessage) error {
 				log.Infof("Insert alert %s-%s success", alert.AlertSrc, alert.AlertName)
 			}
 		}
-	} else {
-		for _, i := range messages.Alerts {
+		if i.Status == "resolved" {
 			alert := new(Alert)
 			alert.AlertName = i.Labels["alertname"]
 			alarmsourcetypename := i.Labels["alert_source_type"]
