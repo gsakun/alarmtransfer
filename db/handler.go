@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	models "github.com/gsakun/alarmtransfer/model"
 	log "github.com/sirupsen/logrus"
@@ -102,7 +103,8 @@ func HandleMessage(messages models.WebhookMessage) error {
 				continue
 			}
 			alert.AlertType = AlertTypemap[alerttype]
-			alert.DateSubmit = i.StartsAt.Format("2006-01-02 15:04:05")
+			l, _ := time.LoadLocation("Asia/Shanghai")
+			alert.DateSubmit = i.StartsAt.In(l).Format("2006-01-02 15:04:05")
 			description := fmt.Sprintf("%s-%s", i.Annotations["description"], i.Annotations["summary"])
 			alert.Description = description
 			alert.UUID = md5V3(fmt.Sprintf("%s-%s", alert.AlertSrc, alert.AlertName))
@@ -135,7 +137,8 @@ func HandleMessage(messages models.WebhookMessage) error {
 			}
 			alert.UUID = md5V3(fmt.Sprintf("%s-%s", alert.AlertSrc, alert.AlertName))
 			alert.AlertState = 1
-			alert.DateHandle = i.EndsAt.Format("2006-01-02 15:04:05")
+			l, _ := time.LoadLocation("Asia/Shanghai")
+			alert.DateHandle = i.EndsAt.In(l).Format("2006-01-02 15:04:05")
 			err := handleralert(alert)
 			if err != nil {
 				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data cancel failed errinfo %v", i, err)
