@@ -57,7 +57,7 @@ func HandleMessage(messages models.WebhookMessage) error {
 			} else if alarmsourcetype == 3 {
 				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s", i.Labels["cluster"])
 			} else if alarmsourcetype == 4 {
-				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s-%s-pod-%s", i.Labels["cluster"], i.Labels["namespace"], i.Labels["container_name"])
+				alert.AlertSrc = fmt.Sprintf("k8s-cluster-%s-%s-pod-%s", i.Labels["cluster"], i.Labels["namespace"], i.Labels["pod_name"])
 			} else {
 				alert.AlertSrc = i.Labels["instance"]
 			}
