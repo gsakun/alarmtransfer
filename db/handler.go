@@ -40,7 +40,7 @@ func md5V3(str string) string {
 
 //HandleMessage use for handler alertmanager alarm message
 func HandleMessage(messages models.WebhookMessage) error {
-	log.Infof("Message: %v", messages)
+	log.Debugf("Message: %v", messages)
 	var errinfo map[string]string = make(map[string]string)
 	for _, i := range messages.Alerts {
 		if i.Status == "firing" {
@@ -147,7 +147,7 @@ func HandleMessage(messages models.WebhookMessage) error {
 				errinfo[alert.AlertName] = fmt.Sprintf("This alert %v data cancel failed errinfo %v", i, err)
 				log.Errorf("%s-%s cancel err %v", alert.AlertSrc, alert.AlertName, err)
 			}
-			log.Infoln("Cancel Alert success for %s-%s", alert.AlertSrc, alert.AlertName)
+			log.Infof("Cancel Alert success for %s-%s", alert.AlertSrc, alert.AlertName)
 		}
 	}
 	if len(errinfo) != 0 {
