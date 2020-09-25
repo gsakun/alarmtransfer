@@ -173,6 +173,7 @@ func handleralert(alert *Alert) error {
 				log.Errorf("Insert prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
 				return err
 			}
+			defer stmt.Close()
 			_, err = stmt.Exec(alert.AlertSrc, alert.AlertSrcType, alert.AlertType, alert.AlertLevel, alert.AlertState, alert.DateSubmit, alert.Description, alert.UUID, 1, alert.System, alert.ZoneID, alert.DataCenterID, alert.AlertName)
 			if err != nil {
 				log.Errorf("Insert exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
@@ -186,6 +187,7 @@ func handleralert(alert *Alert) error {
 				log.Errorf("Update prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
 				return err
 			}
+			defer stmt.Close()
 			_, err = stmt.Exec(alert.AlertState, alert.DateSubmit, alert.Description, alert.UUID)
 			if err != nil {
 				log.Errorf("Update exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
@@ -197,6 +199,7 @@ func handleralert(alert *Alert) error {
 				log.Errorf("Update prepare err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
 				return err
 			}
+			defer stmt.Close()
 			_, err = stmt.Exec(alert.AlertState, alert.DateHandle, alert.UUID)
 			if err != nil {
 				log.Errorf("Update exec err %s-%s %v", alert.AlertSrc, alert.AlertName, err)
